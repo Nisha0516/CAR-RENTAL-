@@ -7,30 +7,73 @@ const CustomerLayout = ({ children }) => {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [user, setUser] = useState(null);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const userData = localStorage.getItem('customerData');
-    if (userData) {
-      setUser(JSON.parse(userData));
-    }
+    // Function to load user data
+    const loadUserData = () => {
+      const userData = localStorage.getItem('customerData') || localStorage.getItem('user');
+      if (userData) {
+        try {
+          const parsedUser = JSON.parse(userData);
+          // Only set user if they are a customer (not owner/admin)
+          if (!parsedUser.role || parsedUser.role === 'customer') {
+            setUser(parsedUser);
+          }
+        } catch (e) {
+          console.error('Error parsing user data:', e);
+        }
+      } else {
+        setUser(null);
+      }
+    };
+
+    // Load on mount
+    loadUserData();
+
+    // Listen for storage events (updates from other tabs/windows)
+    const handleStorageChange = (e) => {
+      if (e.key === 'user' || e.key === 'customerData') {
+        loadUserData();
+      }
+    };
+
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('scroll', handleScroll);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('customerToken');
     localStorage.removeItem('customerData');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     navigate('/customer/login');
   };
 
-  const isLoggedIn = localStorage.getItem('customerToken');
+  // Check for both token types
+  const isLoggedIn = localStorage.getItem('customerToken') || localStorage.getItem('token');
 
   return (
-    <div className="customer-layout">
-      <header className="customer-header">
-        <div className="header-container">
+    <div className="customer-layout-new">
+      {/* Modern Floating Navbar */}
+      <header className={`customer-header-new ${scrolled ? 'scrolled' : ''}`}>
+        <div className="header-container-new">
           <div className="header-content">
-            <div className="logo" onClick={() => navigate('/customer/home')}>
-              <div className="logo-icon">🚗</div>
-              <span className="logo-text">DriveFlex</span>
+            <div className="logo-new" onClick={() => navigate('/customer/home')}>
+              <div className="logo-icon-new">🚙</div>
+              <span className="logo-text-new">
+                <span className="logo-drive">Drive</span>
+                <span className="logo-easy">Easy</span>
+              </span>
             </div>
             
             {/* Desktop Navigation */}
@@ -67,7 +110,9 @@ const CustomerLayout = ({ children }) => {
               {isLoggedIn ? (
                 <div className="user-menu">
                   <div className="user-info">
-                    <span className="user-name">Hello, {user?.name || 'User'}</span>
+                    <span className="user-name">
+                      Hello, {user && typeof user === 'object' ? (user.name || 'User') : 'User'}
+                    </span>
                   </div>
                   <button onClick={handleLogout} className="btn btn-ghost btn-sm">
                     <span className="nav-icon">🚪</span>

@@ -30,18 +30,21 @@ import ManageOwners from "./pages/admin/ManageOwners";
 
 // Route Protection Components
 const OwnerProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem('ownerToken');
-  return token ? children : <Navigate to="/owner/login" />;
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  return (token && user.role === 'owner') ? children : <Navigate to="/owner/login" />;
 };
 
 const AdminProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem('adminToken');
-  return token ? children : <Navigate to="/admin/login" />;
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  return (token && user.role === 'admin') ? children : <Navigate to="/admin/login" />;
 };
 
 const CustomerProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem('customerToken');
-  return token ? children : <Navigate to="/customer/login" />;
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  return (token && user.role === 'customer') ? children : <Navigate to="/customer/login" />;
 };
 
 function App() {

@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import CustomerLayout from './CustomerLayout';
 import CarCard from './components/CarCard/CarCard';
 import SearchFilter from './components/SearchFilter/SearchFilter';
+import { carsAPI } from '../../services/api';
 import './Home.css';
 
 const CustomerHome = () => {
   const [cars, setCars] = useState([]);
   const [filteredCars, setFilteredCars] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [filters, setFilters] = useState({
     search: '',
     type: '',
@@ -17,112 +19,28 @@ const CustomerHome = () => {
   });
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      const mockCars = [
-        {
-          id: 1,
-          name: 'Toyota Camry 2023',
-          image: '/images/cars/toyota-camry.jpg',
-          type: 'Sedan',
-          transmission: 'Automatic',
-          fuelType: 'Petrol',
-          seats: 5,
-          luggage: 2,
-          price: 45,
-          originalPrice: 55,
-          rating: 4.8,
-          reviews: 127,
-          location: 'Downtown',
-          available: true,
-          features: ['Bluetooth', 'Air Conditioning', 'GPS', 'Backup Camera']
-        },
-        {
-          id: 2,
-          name: 'Honda Civic 2023',
-          image: '/images/cars/honda-civic.jpg',
-          type: 'Sedan',
-          transmission: 'Manual',
-          fuelType: 'Petrol',
-          seats: 5,
-          luggage: 2,
-          price: 40,
-          rating: 4.6,
-          reviews: 89,
-          location: 'Airport',
-          available: true,
-          features: ['Bluetooth', 'Air Conditioning', 'Sunroof']
-        },
-        {
-          id: 3,
-          name: 'Ford Mustang 2023',
-          image: '/images/cars/ford-mustang.jpg',
-          type: 'Sports',
-          transmission: 'Automatic',
-          fuelType: 'Petrol',
-          seats: 4,
-          luggage: 1,
-          price: 75,
-          rating: 4.9,
-          reviews: 203,
-          location: 'City Center',
-          available: false,
-          features: ['Leather Seats', 'Premium Sound', 'Sport Mode']
-        },
-        {
-          id: 4,
-          name: 'Tesla Model 3',
-          image: '/images/cars/tesla-model3.jpg',
-          type: 'Electric',
-          transmission: 'Automatic',
-          fuelType: 'Electric',
-          seats: 5,
-          luggage: 2,
-          price: 65,
-          rating: 4.7,
-          reviews: 156,
-          location: 'Business District',
-          available: true,
-          features: ['Autopilot', 'Premium Interior', 'Supercharging']
-        },
-        {
-          id: 5,
-          name: 'BMW X5',
-          image: '/images/cars/bmw-x5.jpg',
-          type: 'SUV',
-          transmission: 'Automatic',
-          fuelType: 'Diesel',
-          seats: 7,
-          luggage: 3,
-          price: 85,
-          rating: 4.5,
-          reviews: 94,
-          location: 'Shopping Mall',
-          available: true,
-          features: ['Panoramic Roof', 'Heated Seats', 'Parking Assist']
-        },
-        {
-          id: 6,
-          name: 'Mercedes C-Class',
-          image: '/images/cars/mercedes-cclass.jpg',
-          type: 'Luxury',
-          transmission: 'Automatic',
-          fuelType: 'Petrol',
-          seats: 5,
-          luggage: 2,
-          price: 70,
-          rating: 4.8,
-          reviews: 112,
-          location: 'Uptown',
-          available: true,
-          features: ['Leather Interior', 'Premium Sound', 'Ambient Lighting']
-        }
-      ];
-      setCars(mockCars);
-      setFilteredCars(mockCars);
-      setLoading(false);
-    }, 1000);
+    fetchCars();
   }, []);
+
+  const fetchCars = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await carsAPI.getCars();
+      // Filter to show only approved and available cars
+      const approvedCars = (response.cars || []).filter(car => car.approved === true);
+      setCars(approvedCars);
+      setFilteredCars(approvedCars);
+    } catch (err) {
+      setError(err.message || 'Failed to load cars');
+      console.error('Error fetching cars:', err);
+      // Don't use mock data - show empty state instead
+      setCars([]);
+      setFilteredCars([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters);
@@ -228,7 +146,7 @@ const CustomerHome = () => {
                 {filteredCars.length > 0 ? (
                   <div className="cars-grid">
                     {filteredCars.map(car => (
-                      <CarCard key={car.id} car={car} />
+                      <CarCard key={car._id || car.id} car={car} />
                     ))}
                   </div>
                 ) : (

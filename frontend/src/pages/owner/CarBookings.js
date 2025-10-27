@@ -1,65 +1,88 @@
 import React, { useState, useEffect } from "react";
+import { ownerAPI } from '../../services/api';
 import "./CarBookings.css";
 
-function CarBookings({ bookings, setBookings, cars }) {
+function CarBookings({ cars }) {
   const [filter, setFilter] = useState("all");
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Sample bookings data
-    const sampleBookings = [
-      {
-        id: 1,
-        carId: 1,
-        customerName: "Amit Sharma",
-        customerPhone: "+91 9876543210",
-        carModel: "Toyota Innova",
-        carNumber: "KA01AB1234",
-        startDate: "2024-02-15",
-        endDate: "2024-02-18",
-        totalDays: 3,
-        totalAmount: 4500,
-        status: "pending",
-        bookingDate: "2024-02-10"
-      },
-      {
-        id: 2,
-        carId: 2,
-        customerName: "Priya Patel",
-        customerPhone: "+91 9876543211",
-        carModel: "Hyundai Creta",
-        carNumber: "KA01CD5678",
-        startDate: "2024-02-20",
-        endDate: "2024-02-22",
-        totalDays: 2,
-        totalAmount: 6000,
-        status: "confirmed",
-        bookingDate: "2024-02-12"
-      },
-      {
-        id: 3,
-        carId: 3,
-        customerName: "Rahul Verma",
-        customerPhone: "+91 9876543212",
-        carModel: "Maruti Swift",
-        carNumber: "KA01EF9012",
-        startDate: "2024-02-25",
-        endDate: "2024-02-28",
-        totalDays: 3,
-        totalAmount: 3000,
-        status: "completed",
-        bookingDate: "2024-02-08"
-      }
-    ];
-    setBookings(sampleBookings);
-  }, [setBookings]);
+    fetchBookings();
+  }, []);
 
-  const handleBookingAction = (bookingId, action) => {
-    setBookings(bookings.map(booking => 
-      booking.id === bookingId 
-        ? { ...booking, status: action }
-        : booking
-    ));
-    alert(`Booking ${action} successfully!`);
+  const fetchBookings = async () => {
+    setLoading(true);
+    try {
+      const response = await ownerAPI.getMyBookings();
+      setBookings(response.bookings || []);
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+      // Fallback to sample data
+      const sampleBookings = [
+        {
+          id: 1,
+          carId: 1,
+          customerName: "Amit Sharma",
+          customerPhone: "+91 9876543210",
+          carModel: "Toyota Innova",
+          carNumber: "KA01AB1234",
+          startDate: "2024-02-15",
+          endDate: "2024-02-18",
+          totalDays: 3,
+          totalAmount: 4500,
+          status: "pending",
+          bookingDate: "2024-02-10"
+        },
+        {
+          id: 2,
+          carId: 2,
+          customerName: "Priya Patel",
+          customerPhone: "+91 9876543211",
+          carModel: "Hyundai Creta",
+          carNumber: "KA01CD5678",
+          startDate: "2024-02-20",
+          endDate: "2024-02-22",
+          totalDays: 2,
+          totalAmount: 6000,
+          status: "confirmed",
+          bookingDate: "2024-02-12"
+        },
+        {
+          id: 3,
+          carId: 3,
+          customerName: "Rahul Verma",
+          customerPhone: "+91 9876543212",
+          carModel: "Maruti Swift",
+          carNumber: "KA01EF9012",
+          startDate: "2024-02-25",
+          endDate: "2024-02-28",
+          totalDays: 3,
+          totalAmount: 3000,
+          status: "completed",
+          bookingDate: "2024-02-08"
+        }
+      ];
+      setBookings(sampleBookings);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBookingAction = async (bookingId, action) => {
+    try {
+      if (action === 'confirmed') {
+        await ownerAPI.approveBooking(bookingId);
+      } else if (action === 'cancelled') {
+        await ownerAPI.rejectBooking(bookingId);
+      } else if (action === 'completed') {
+        await ownerAPI.completeBooking(bookingId);
+      }
+      alert(`Booking ${action} successfully!`);
+      fetchBookings(); // Refresh bookings
+    } catch (error) {
+      alert(error.message || 'Failed to update booking');
+    }
   };
 
   const filteredBookings = bookings.filter(booking => {

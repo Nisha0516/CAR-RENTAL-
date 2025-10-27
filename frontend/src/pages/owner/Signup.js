@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { authAPI } from '../../services/api';
 import "./Signup.css";
 
 function Signup() {
@@ -14,6 +15,7 @@ function Signup() {
     licenseNumber: ""
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -25,22 +27,37 @@ function Signup() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setError('');
 
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords don't match!");
-      setLoading(false);
+      setError("Passwords don't match!");
       return;
     }
 
-    // Simulate API call
-    setTimeout(() => {
-      localStorage.setItem('ownerToken', 'demo-token');
-      localStorage.setItem('ownerEmail', formData.email);
-      alert('Account created successfully!');
-      navigate('/owner/dashboard/profile');
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await authAPI.signup({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        phone: formData.phone,
+        drivingLicense: formData.licenseNumber,
+        role: 'owner'
+      });
+
+      alert('Account created successfully! Please login.');
+      navigate('/owner/login');
+    } catch (err) {
+      setError(err.message || 'Signup failed. Please try again.');
+    } finally {
       setLoading(false);
-    }, 2000);
+    }
   };
 
   return (
@@ -50,6 +67,19 @@ function Signup() {
           <h2>Owner Sign Up</h2>
           <p>Create your car rental business account</p>
         </div>
+
+        {error && (
+          <div className="error-message" style={{
+            padding: '12px',
+            background: '#fee2e2',
+            color: '#dc2626',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            textAlign: 'center'
+          }}>
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="signup-form">
           <div className="form-row">

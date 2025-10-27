@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { authAPI } from '../../services/api';
 import './Login.css';
 
 const CustomerLogin = () => {
@@ -8,6 +9,7 @@ const CustomerLogin = () => {
     password: ''
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -20,16 +22,24 @@ const CustomerLogin = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     
-    setTimeout(() => {
-      localStorage.setItem('customerToken', 'mock-customer-jwt-token');
-      localStorage.setItem('customerData', JSON.stringify({
-        name: 'John Doe',
-        email: formData.email
-      }));
+    try {
+      const response = await authAPI.login(formData);
+      
+      // Check if user is a customer
+      if (response.user.role !== 'customer') {
+        setError('Invalid credentials. Please use customer login.');
+        setLoading(false);
+        return;
+      }
+      
+      // Token and user data are automatically stored by authAPI.login
       navigate('/customer/home');
+    } catch (err) {
+      setError(err.message || 'Login failed. Please check your credentials.');
       setLoading(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -39,6 +49,19 @@ const CustomerLogin = () => {
           <h1>Customer Login</h1>
           <p>Welcome back! Please sign in to your account</p>
         </div>
+
+        {error && (
+          <div className="error-message" style={{
+            padding: '12px',
+            background: '#fee2e2',
+            color: '#dc2626',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            textAlign: 'center'
+          }}>
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">

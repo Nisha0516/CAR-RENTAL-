@@ -96,9 +96,16 @@ const CarDetails = () => {
             )}
 
             <button 
-              onClick={() => navigate(`/customer/booking/${car.id}`)}
-              className="btn-primary large"
+              onClick={() => navigate(`/customer/booking/${car.id}`, { 
+                state: { 
+                  startDate: selectedDates.start, 
+                  endDate: selectedDates.end,
+                  car: car // Pass the entire car object
+                },
+                replace: true // Replace current entry in history
+              })}
               disabled={!car.available || !selectedDates.start || !selectedDates.end}
+              className="btn-primary large"
             >
               Continue to Book
             </button>

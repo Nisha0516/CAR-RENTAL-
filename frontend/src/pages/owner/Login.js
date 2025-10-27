@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { authAPI } from '../../services/api';
 import "./Login.css";
 
 function Login() {
@@ -8,6 +9,7 @@ function Login() {
     password: ""
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -20,18 +22,30 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
 
-    // Simulate API call
-    setTimeout(() => {
-      if (formData.email && formData.password) {
-        localStorage.setItem('ownerToken', 'demo-token');
-        localStorage.setItem('ownerEmail', formData.email);
-        navigate('/owner/dashboard');
-      } else {
-        alert('Please enter email and password');
+    try {
+      const response = await authAPI.login(formData);
+      
+      // Check if user is an owner
+      if (response.user.role !== 'owner') {
+        setError('Invalid credentials. Please use owner login.');
+        setLoading(false);
+        return;
       }
+      
+      // Store token and user data
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      
+      // Navigate to owner dashboard
       setLoading(false);
-    }, 1500);
+      navigate('/owner/dashboard');
+    } catch (err) {
+      console.error('Owner login error:', err);
+      setError(err.message || 'Login failed. Please check your credentials.');
+      setLoading(false);
+    }
   };
 
   return (
@@ -41,6 +55,19 @@ function Login() {
           <h2>Owner Login</h2>
           <p>Access your car rental business dashboard</p>
         </div>
+
+        {error && (
+          <div className="error-message" style={{
+            padding: '12px',
+            background: '#fee2e2',
+            color: '#dc2626',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            textAlign: 'center'
+          }}>
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">

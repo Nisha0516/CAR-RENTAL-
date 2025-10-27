@@ -1,30 +1,64 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { ownerAPI } from '../../services/api';
 import "./MyCars.css";
 
-function MyCars({ cars, setCars }) {
+function MyCars() {
   const navigate = useNavigate();
+  const [cars, setCars] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const deleteCar = (id) => {
-    if (window.confirm("Are you sure you want to delete this car?")) {
-      setCars(cars.filter((car) => car.id !== id));
-      alert("Car deleted successfully!");
+  useEffect(() => {
+    fetchMyCars();
+  }, []);
+
+  const fetchMyCars = async () => {
+    setLoading(true);
+    try {
+      const response = await ownerAPI.getMyCars();
+      console.log('Fetched owner cars:', response);
+      setCars(response.cars || response.data || []);
+    } catch (error) {
+      console.error('Error fetching cars:', error);
+      alert('Failed to fetch cars: ' + (error.message || 'Unknown error'));
+    } finally {
+      setLoading(false);
     }
   };
 
-  const toggleCarStatus = (id) => {
-    setCars(cars.map(car => 
-      car.id === id 
-        ? { ...car, status: car.status === 'available' ? 'maintenance' : 'available' }
-        : car
-    ));
+  const deleteCar = async (id) => {
+    if (window.confirm("Are you sure you want to delete this car?")) {
+      try {
+        await ownerAPI.deleteCar(id);
+        setCars(cars.filter((car) => car._id !== id));
+        alert("Car deleted successfully!");
+      } catch (error) {
+        alert(error.message || 'Failed to delete car');
+      }
+    }
+  };
+
+  const toggleCarStatus = async (id) => {
+    try {
+      const car = cars.find(c => c._id === id);
+      const newAvailability = !car.available;
+      await ownerAPI.updateCarAvailability(id, newAvailability);
+      setCars(cars.map(car => 
+        car._id === id 
+          ? { ...car, available: newAvailability }
+          : car
+      ));
+      alert('Car status updated!');
+    } catch (error) {
+      alert(error.message || 'Failed to update status');
+    }
   };
 
   const editCar = (car) => {
     // For now, navigate to add-cars and show a message
     // In a real app, you would pass the car data to edit
     navigate('/owner/dashboard');
-    alert(`Edit functionality for ${car.carModel} would open here`);
+    alert(`Edit functionality for ${car.name} would open here`);
   };
 
   return (
@@ -55,30 +89,32 @@ function MyCars({ cars, setCars }) {
           </div>
         ) : (
           cars.map((car) => (
-            <div className={`car-card ${car.status}`} key={car.id}>
+            <div className={`car-card ${car.approved ? (car.available ? 'available' : 'unavailable') : 'pending'}`} key={car._id}>
               <div className="car-image">
-                {car.imageURL ? (
-                  <img src={car.imageURL} alt={car.carModel} />
+                {car.images && car.images[0] ? (
+                  <img src={car.images[0]} alt={car.name} />
                 ) : (
                   <div className="image-placeholder">🚗</div>
                 )}
-                <div className="car-status">{car.status}</div>
+                <div className="car-status">
+                  {car.approved ? (car.available ? 'Available' : 'Unavailable') : 'Pending Approval'}
+                </div>
               </div>
               
               <div className="car-info">
-                <h4>{car.carModel}</h4>
+                <h4>{car.name}</h4>
                 <div className="car-details">
-                  <span className="car-number">{car.carNumber}</span>
-                  <span className="car-type">{car.carType}</span>
+                  <span className="car-type">{car.type}</span>
+                  {car.approved && <span className="approved-badge">✓ Approved</span>}
+                  {!car.approved && <span className="pending-badge">⏳ Pending</span>}
                 </div>
                 <div className="car-specs">
-                  <span>🎨 {car.carColor}</span>
-                  <span>⛽ {car.fuelType}</span>
+                  <span>⛽ {car.fuel}</span>
                   <span>⚙️ {car.transmission}</span>
                   {car.seats && <span>👥 {car.seats} seats</span>}
                 </div>
                 <div className="car-price">
-                  <strong>₹{car.pricePerDay}</strong>
+                  <strong>₹{car.price}</strong>
                   <span>/ day</span>
                 </div>
                 <div className="car-location">
@@ -90,18 +126,20 @@ function MyCars({ cars, setCars }) {
                 <button 
                   className="btn btn-edit"
                   onClick={() => editCar(car)}
+                  disabled={!car.approved}
                 >
                   Edit
                 </button>
                 <button 
-                  className={`btn btn-status ${car.status === 'available' ? 'btn-warning' : 'btn-success'}`}
-                  onClick={() => toggleCarStatus(car.id)}
+                  className={`btn btn-status ${car.available ? 'btn-warning' : 'btn-success'}`}
+                  onClick={() => toggleCarStatus(car._id)}
+                  disabled={!car.approved}
                 >
-                  {car.status === 'available' ? 'Mark Maintenance' : 'Mark Available'}
+                  {car.available ? 'Mark Unavailable' : 'Mark Available'}
                 </button>
                 <button 
                   className="btn btn-delete"
-                  onClick={() => deleteCar(car.id)}
+                  onClick={() => deleteCar(car._id)}
                 >
                   Delete
                 </button>

@@ -1,9 +1,11 @@
 import React, { useState } from "react";
+import { ownerAPI } from '../../services/api';
 import "./Profile.css";
 
 function Profile({ ownerProfile, setOwnerProfile }) {
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileFormData, setProfileFormData] = useState({ ...ownerProfile });
+  const [saving, setSaving] = useState(false);
 
   const handleProfileChange = (e) => {
     const { name, value, files } = e.target;
@@ -18,11 +20,44 @@ function Profile({ ownerProfile, setOwnerProfile }) {
     }
   };
 
-  const saveProfile = (e) => {
+  const saveProfile = async (e) => {
     e.preventDefault();
-    setOwnerProfile(profileFormData);
-    setEditingProfile(false);
-    alert("Profile updated successfully!");
+    setSaving(true);
+    
+    try {
+      // Prepare data for backend (exclude file objects)
+      const profileDataToSave = {
+        name: profileFormData.name,
+        email: profileFormData.email,
+        phone: profileFormData.phone,
+        address: profileFormData.address,
+        companyName: profileFormData.companyName,
+        aadharNumber: profileFormData.aadharNumber,
+        licenseNumber: profileFormData.licenseNumber,
+        bankAccount: profileFormData.bankAccount,
+        ifscCode: profileFormData.ifscCode,
+        profilePictureUrl: profileFormData.profilePictureUrl
+      };
+      
+      // Save to backend
+      const response = await ownerAPI.updateProfile(profileDataToSave);
+      
+      // Update local state
+      setOwnerProfile(profileFormData);
+      
+      // Update localStorage
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const updatedUser = { ...currentUser, ...profileDataToSave };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      
+      setEditingProfile(false);
+      alert("Profile updated successfully!");
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      alert(error.message || 'Failed to update profile. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const cancelEditProfile = () => {
@@ -172,13 +207,19 @@ function Profile({ ownerProfile, setOwnerProfile }) {
             </div>
 
             <div className="form-actions">
-              <button type="submit" className="btn btn-primary">
-                Save Changes
+              <button 
+                type="submit" 
+                className="btn btn-primary"
+                disabled={saving}
+                style={{ opacity: saving ? 0.7 : 1 }}
+              >
+                {saving ? '💾 Saving...' : '✓ Save Changes'}
               </button>
               <button 
                 type="button" 
                 className="btn btn-secondary"
                 onClick={cancelEditProfile}
+                disabled={saving}
               >
                 Cancel
               </button>

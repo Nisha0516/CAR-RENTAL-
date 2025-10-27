@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { ownerAPI } from '../../services/api';
 import Profile from "./Profile";
 import AddCars from "./AddCars";
 import MyCars from "./MyCars";
@@ -10,24 +11,31 @@ function OwnerDashboard() {  // Component name is OwnerDashboard
   const [cars, setCars] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [activeTab, setActiveTab] = useState("profile");
-  const [ownerProfile, setOwnerProfile] = useState({
-    id: 1,
-    name: "Rajesh Kumar",
-    email: "rajesh@driveeasy.com",
-    phone: "+91 9876543210",
-    address: "123 MG Road, Bangalore, Karnataka",
-    joinDate: "2024-01-15",
-    totalCars: 0,
-    totalEarnings: 0,
-    rating: 4.8,
-    profilePicture: null,
-    profilePictureUrl: null,
-    companyName: "Rajesh Auto Rentals",
-    aadharNumber: "XXXX-XXXX-1234",
-    licenseNumber: "KA01-2020-123456",
-    bankAccount: "XXXX-XXXX-1234",
-    ifscCode: "SBIN0000123"
-  });
+  
+  // Get user data from localStorage
+  const getUserData = () => {
+    const userData = JSON.parse(localStorage.getItem('user') || '{}');
+    return {
+      id: userData._id || userData.id || 1,
+      name: userData.name || "Owner",
+      email: userData.email || "owner@example.com",
+      phone: userData.phone || "Not provided",
+      address: userData.address || "Not provided",
+      joinDate: userData.createdAt ? new Date(userData.createdAt).toLocaleDateString() : "N/A",
+      totalCars: 0,
+      totalEarnings: 0,
+      rating: userData.rating || 4.8,
+      profilePicture: null,
+      profilePictureUrl: userData.profilePicture || null,
+      companyName: userData.companyName || "My Car Rentals",
+      aadharNumber: userData.aadharNumber || "XXXX-XXXX-XXXX",
+      licenseNumber: userData.licenseNumber || "XXXX-XXXX-XXXX",
+      bankAccount: userData.bankAccount || "XXXX-XXXX-XXXX",
+      ifscCode: userData.ifscCode || "XXXX-XXXX"
+    };
+  };
+  
+  const [ownerProfile, setOwnerProfile] = useState(getUserData());
 
   const [stats, setStats] = useState({
     totalCars: 0,
@@ -35,6 +43,9 @@ function OwnerDashboard() {  // Component name is OwnerDashboard
     totalEarnings: 0,
     completedBookings: 0
   });
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,6 +58,78 @@ function OwnerDashboard() {  // Component name is OwnerDashboard
     else if (path.includes('bookings')) setActiveTab('bookings');
     else setActiveTab('profile');
   }, [location]);
+
+  useEffect(() => {
+    fetchDashboardData();
+    fetchProfileData();
+  }, []);
+
+  const fetchProfileData = async () => {
+    try {
+      const response = await ownerAPI.getProfile();
+      if (response.success && response.user) {
+        const profileData = {
+          id: response.user._id,
+          name: response.user.name,
+          email: response.user.email,
+          phone: response.user.phone,
+          address: response.user.address || "Not provided",
+          joinDate: new Date(response.user.createdAt).toLocaleDateString(),
+          totalCars: 0,
+          totalEarnings: 0,
+          rating: 4.8,
+          profilePicture: null,
+          profilePictureUrl: response.user.profilePictureUrl || null,
+          companyName: response.user.companyName || "My Car Rentals",
+          aadharNumber: response.user.aadharNumber || "XXXX-XXXX-XXXX",
+          licenseNumber: response.user.licenseNumber || "XXXX-XXXX-XXXX",
+          bankAccount: response.user.bankAccount || "XXXX-XXXX-XXXX",
+          ifscCode: response.user.ifscCode || "XXXX-XXXX"
+        };
+        
+        setOwnerProfile(profileData);
+        
+        // Update localStorage with fresh data
+        localStorage.setItem('user', JSON.stringify(response.user));
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      // Fall back to localStorage data
+      const localData = getUserData();
+      setOwnerProfile(localData);
+    }
+  };
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      const response = await ownerAPI.getDashboard();
+      const data = response.dashboard || {};
+      setStats({
+        totalCars: data.totalCars,
+        activeBookings: data.activeBookings,
+        totalEarnings: data.totalEarnings,
+        completedBookings: data.completedBookings
+      });
+      setOwnerProfile(prev => ({
+        ...prev,
+        totalCars: data.totalCars,
+        totalEarnings: data.totalEarnings
+      }));
+    } catch (err) {
+      setError(err.message || 'Failed to load dashboard');
+      console.error('Error fetching dashboard:', err);
+      // Fallback to mock data
+      setStats({
+        totalCars: 0,
+        activeCars: 0,
+        totalBookings: 0,
+        totalEarnings: 0
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     setStats({
@@ -68,7 +151,8 @@ function OwnerDashboard() {  // Component name is OwnerDashboard
   }, [cars, bookings]);
 
   const handleLogout = () => {
-    localStorage.removeItem('ownerToken');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     navigate('/owner/login');
   };
 
@@ -135,12 +219,12 @@ function OwnerDashboard() {  // Component name is OwnerDashboard
               {ownerProfile.profilePictureUrl ? (
                 <img src={ownerProfile.profilePictureUrl} alt="Profile" />
               ) : (
-                ownerProfile.name.charAt(0)
+                <span style={{ color: 'white' }}>{ownerProfile.name?.charAt(0) || 'O'}</span>
               )}
             </div>
             <div className="user-details">
-              <strong>{ownerProfile.name}</strong>
-              <span>{ownerProfile.email}</span>
+              <strong style={{ color: 'white' }}>{ownerProfile.name || 'Owner'}</strong>
+              <span style={{ color: 'rgba(255, 255, 255, 0.9)' }}>{ownerProfile.email || 'owner@example.com'}</span>
             </div>
           </div>
           <button className="btn btn-logout" onClick={handleLogout}>

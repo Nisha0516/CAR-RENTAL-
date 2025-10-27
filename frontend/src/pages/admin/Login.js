@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { authAPI } from '../../services/api';
 import './AdminLogin.css';
 
 const Login = () => {
@@ -8,6 +9,7 @@ const Login = () => {
     password: ''
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -20,13 +22,24 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     
-    // Simulate login process
-    setTimeout(() => {
-      localStorage.setItem('adminToken', 'mock-jwt-token');
+    try {
+      const response = await authAPI.login(formData);
+      
+      // Check if user is an admin
+      if (response.user.role !== 'admin') {
+        setError('Access denied. Admin credentials required.');
+        setLoading(false);
+        return;
+      }
+      
+      // Token and user data are automatically stored by authAPI.login
       navigate('/admin/dashboard');
+    } catch (err) {
+      setError(err.message || 'Login failed. Please check your credentials.');
       setLoading(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -36,6 +49,19 @@ const Login = () => {
           <h1>Admin Login</h1>
           <p>Access your car rental administration panel</p>
         </div>
+
+        {error && (
+          <div className="error-message" style={{
+            padding: '12px',
+            background: '#fee2e2',
+            color: '#dc2626',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            textAlign: 'center'
+          }}>
+            {error}
+          </div>
+        )}
         
         <form onSubmit={handleSubmit} className="admin-login-form">
           <div className="form-group">

@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { authAPI } from '../../services/api';
 import './Signup.css';
 
 const CustomerSignup = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    phone: '',
     password: '',
     confirmPassword: '',
+    phone: '',
     drivingLicense: ''
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -23,24 +25,37 @@ const CustomerSignup = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match!');
+      setError('Passwords do not match!');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long');
       return;
     }
 
     setLoading(true);
-    
-    setTimeout(() => {
-      localStorage.setItem('customerToken', 'mock-customer-jwt-token');
-      localStorage.setItem('customerData', JSON.stringify({
+
+    try {
+      await authAPI.signup({
         name: formData.name,
         email: formData.email,
-        phone: formData.phone
-      }));
-      navigate('/customer/home');
+        password: formData.password,
+        phone: formData.phone,
+        drivingLicense: formData.drivingLicense,
+        role: 'customer'
+      });
+
+      alert('Signup successful! Please login with your credentials.');
+      navigate('/customer/login');
+    } catch (err) {
+      setError(err.message || 'Signup failed. Please try again.');
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -50,6 +65,19 @@ const CustomerSignup = () => {
           <h1>Create Account</h1>
           <p>Join thousands of happy customers</p>
         </div>
+
+        {error && (
+          <div className="error-message" style={{
+            padding: '12px',
+            background: '#fee2e2',
+            color: '#dc2626',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            textAlign: 'center'
+          }}>
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="signup-form">
           <div className="form-group">
