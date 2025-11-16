@@ -1,0 +1,101 @@
+===========================================
+BACKEND .ENV FILE - COPY THIS CONTENT
+===========================================
+
+Instructions:
+1. Create a new file: backend/.env
+2. Copy everything below the line
+3. Paste into backend/.env
+4. Update the values as needed
+5. Save the file
+
+===========================================
+
+
+# ========================================
+# MongoDB Connection
+# ========================================
+# Choose ONE option below:
+
+# OPTION 1: Local MongoDB (if installed on your computer)
+MONGODB_URI=mongodb://127.0.0.1:27017/car_rental
+
+# OPTION 2: MongoDB Atlas (cloud - free tier)
+# Uncomment the line below and add your connection string
+# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/car_rental?retryWrites=true&w=majority
+
+
+# ========================================
+# JWT Secret Key
+# ========================================
+# IMPORTANT: Change this to a random string!
+# Generate one by running: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+JWT_SECRET=change_this_to_a_very_long_random_secret_key_for_security
+
+
+# ========================================
+# Server Configuration
+# ========================================
+PORT=5000
+FRONTEND_URL=http://localhost:3000
+
+
+# ========================================
+# Optional Settings
+# ========================================
+SESSION_SECRET=your_session_secret_change_this
+MAX_FILE_SIZE=10485760
+
+
+===========================================
+QUICK MONGODB SETUP GUIDE
+===========================================
+
+If you DON'T have MongoDB installed:
+
+Option A - Install Locally (Windows):
+1. Download: https://www.mongodb.com/try/download/community
+2. Install with default settings
+3. Open PowerShell as Admin:
+   net start MongoDB
+4. Use: MONGODB_URI=mongodb://127.0.0.1:27017/car_rental
+
+Option B - Use MongoDB Atlas (Cloud - FREE):
+1. Go to: https://www.mongodb.com/cloud/atlas
+2. Sign up (free)
+3. Create Cluster (M0 - FREE tier)
+4. Database Access → Add User (username: admin, password: admin123)
+5. Network Access → Add IP → Allow from Anywhere (0.0.0.0/0)
+6. Clusters → Connect → Connect Application
+7. Copy connection string
+8. Format: mongodb+srv://admin:admin123@cluster0.xxxxx.mongodb.net/car_rental
+9. Paste in MONGODB_URI above
+
+
+===========================================
+AFTER CREATING .ENV FILE
+===========================================
+
+1. Save backend/.env file
+2. Backend will auto-restart (if running)
+3. Check terminal for: "✅ MongoDB Connected"
+4. Visit: http://localhost:5000/api/health
+5. Create test accounts:
+   - Admin: http://localhost:5000/api/create-admin
+   - Owner: http://localhost:5000/api/create-owner
+6. Start frontend: cd frontend && npm start
+7. Open: http://localhost:3000
+
+
+===========================================
+NEED HELP?
+===========================================
+
+Read these files:
+- GETTING_STARTED.md (quick 5-min setup)
+- SETUP_GUIDE.md (detailed instructions)
+- TROUBLESHOOTING.md (if you have errors)
+- PROJECT_UPDATE.md (summary of all changes)
+
+
+===========================================
