@@ -19,7 +19,11 @@ const notificationSchema = new mongoose.Schema({
       'car_approved',
       'car_rejected',
       'review_added',
-      'system_message'
+      'system_message',
+      'emergency',
+      'booking_extension_requested',
+      'booking_extension_approved',
+      'booking_extension_rejected'
     ]
   },
   title: {
@@ -37,6 +41,21 @@ const notificationSchema = new mongoose.Schema({
   relatedCar: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Car'
+  },
+  relatedEmergency: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Emergency'
+  },
+  extraDays: {
+    type: Number
+  },
+  newEndDate: {
+    type: Date
+  },
+  extensionStatus: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending'
   },
   read: {
     type: Boolean,

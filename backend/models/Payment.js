@@ -19,11 +19,23 @@ const paymentSchema = new mongoose.Schema({
   paymentMethod: {
     type: String,
     required: true,
-    enum: ['Card', 'UPI', 'Cash', 'Wallet']
+    enum: ['Card', 'UPI', 'Cash', 'Wallet', 'Razorpay']
   },
   transactionId: {
     type: String,
     unique: true,
+    sparse: true
+  },
+  razorpayOrderId: {
+    type: String,
+    sparse: true
+  },
+  razorpayPaymentId: {
+    type: String,
+    sparse: true
+  },
+  razorpaySignature: {
+    type: String,
     sparse: true
   },
   status: {

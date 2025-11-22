@@ -1,219 +1,225 @@
-const Payment = require('../models/Payment');
+// backend/controllers/paymentController.js
+const Razorpay = require('razorpay');
+const ErrorResponse = require('../utils/errorResponse');
 const Booking = require('../models/Booking');
+const Car = require('../models/Car');
+const User = require('../models/User');
 
-// @desc    Get payment history
-// @route   GET /api/payments
+// Initialize Razorpay
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET
+});
+
+// @desc    Create Razorpay Order
+// @route   POST /api/payments/create-order
 // @access  Private
-exports.getPayments = async (req, res) => {
+exports.createRazorpayOrder = async (req, res, next) => {
   try {
-    let query;
+    const { amount, currency = 'INR', receipt, notes, bookingId } = req.body;
 
-    if (req.user.role === 'customer') {
-      query = { customer: req.user.id };
-    } else if (req.user.role === 'admin') {
-      query = {};
-    } else {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized'
-      });
-    }
+    let amountInRupees;
 
-    const payments = await Payment.find(query)
-      .populate('booking')
-      .populate('customer', 'name email')
-      .sort('-createdAt');
-
-    res.json({
-      success: true,
-      count: payments.length,
-      payments
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
-
-// @desc    Get single payment
-// @route   GET /api/payments/:id
-// @access  Private
-exports.getPayment = async (req, res) => {
-  try {
-    const payment = await Payment.findById(req.params.id)
-      .populate('booking')
-      .populate('customer', 'name email phone');
-
-    if (!payment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Payment not found'
-      });
-    }
-
-    // Check authorization
-    if (
-      payment.customer._id.toString() !== req.user.id &&
-      req.user.role !== 'admin'
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to view this payment'
-      });
-    }
-
-    res.json({
-      success: true,
-      payment
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
-
-// @desc    Process payment
-// @route   POST /api/payments
-// @access  Private (Customer)
-exports.processPayment = async (req, res) => {
-  try {
-    const { bookingId, paymentMethod, cardDetails, upiId } = req.body;
-
-    // Get booking
-    const booking = await Booking.findById(bookingId);
-
-    if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: 'Booking not found'
-      });
-    }
-
-    if (booking.customer.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized'
-      });
-    }
-
-    // Check if payment already exists
-    const existingPayment = await Payment.findOne({ booking: bookingId });
-    if (existingPayment) {
-      return res.status(400).json({
-        success: false,
-        message: 'Payment already processed for this booking'
-      });
-    }
-
-    // Create payment
-    const payment = await Payment.create({
-      booking: bookingId,
-      customer: req.user.id,
-      amount: booking.totalPrice,
-      paymentMethod,
-      cardDetails,
-      upiId,
-      transactionId: `TXN${Date.now()}${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-      status: 'Completed', // In production, this would be 'Pending' until payment gateway confirms
-      paymentDate: Date.now()
-    });
-
-    // Update booking payment status
-    booking.paymentStatus = 'Completed';
-    await booking.save();
-
-    res.status(201).json({
-      success: true,
-      message: 'Payment processed successfully',
-      payment
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
-
-// @desc    Process refund
-// @route   POST /api/payments/:id/refund
-// @access  Private (Admin)
-exports.processRefund = async (req, res) => {
-  try {
-    const { refundAmount, notes } = req.body;
-
-    const payment = await Payment.findById(req.params.id);
-
-    if (!payment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Payment not found'
-      });
-    }
-
-    if (payment.status === 'Refunded') {
-      return res.status(400).json({
-        success: false,
-        message: 'Payment already refunded'
-      });
-    }
-
-    payment.status = 'Refunded';
-    payment.refundAmount = refundAmount || payment.amount;
-    payment.refundDate = Date.now();
-    payment.notes = notes;
-
-    await payment.save();
-
-    res.json({
-      success: true,
-      message: 'Refund processed successfully',
-      payment
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
-
-// @desc    Get payment statistics
-// @route   GET /api/payments/stats
-// @access  Private (Admin)
-exports.getPaymentStats = async (req, res) => {
-  try {
-    const totalRevenue = await Payment.aggregate([
-      { $match: { status: 'Completed' } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
-
-    const totalRefunds = await Payment.aggregate([
-      { $match: { status: 'Refunded' } },
-      { $group: { _id: null, total: { $sum: '$refundAmount' } } }
-    ]);
-
-    const paymentsByMethod = await Payment.aggregate([
-      { $match: { status: 'Completed' } },
-      { $group: { _id: '$paymentMethod', count: { $sum: 1 }, amount: { $sum: '$amount' } } }
-    ]);
-
-    res.json({
-      success: true,
-      stats: {
-        totalRevenue: totalRevenue[0]?.total || 0,
-        totalRefunds: totalRefunds[0]?.total || 0,
-        paymentsByMethod
+    // If bookingId is provided and amount is not, derive amount from booking
+    if (bookingId && (amount === undefined || amount === null || amount === '')) {
+      const booking = await Booking.findById(bookingId);
+      if (!booking) {
+        return next(new ErrorResponse('Booking not found for payment', 404));
       }
+      amountInRupees = Number(booking.totalPrice) || 0;
+    } else if (amount !== undefined) {
+      amountInRupees = parseFloat(amount);
+    }
+
+    if (!amountInRupees || isNaN(amountInRupees) || amountInRupees <= 0) {
+      return next(new ErrorResponse('Please provide a valid payment amount', 400));
+    }
+
+    // Convert to paise for Razorpay (1 Rupee = 100 paise)
+    const amountInPaise = Math.round(amountInRupees * 100);
+
+    // Validate minimum amount (Razorpay minimum is 1 Rupee)
+    if (amountInPaise < 100) {
+      return next(new ErrorResponse('Minimum payment amount is 1', 400));
+    }
+
+    // Prepare a safe receipt ID (Razorpay max length is 40 characters)
+    let safeReceipt;
+    if (receipt && typeof receipt === 'string') {
+      safeReceipt = receipt.substring(0, 40);
+    } else if (bookingId) {
+      safeReceipt = `bk_${bookingId}`.substring(0, 40);
+    } else {
+      safeReceipt = `od_${Date.now()}`.substring(0, 40);
+    }
+
+    const options = {
+      amount: amountInPaise, // Amount in paise
+      currency,
+      receipt: safeReceipt,
+      payment_capture: 1,
+      notes: {
+        userId: req.user.id,
+        bookingId: bookingId || null,
+        amountInRupees,
+        ...notes
+      }
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    res.status(200).json({
+      success: true,
+      order
     });
+
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
+    console.error('Razorpay Order Error:', error);
+    if (error.statusCode) {
+      return next(new ErrorResponse(
+        error.error?.description || 'Payment processing error',
+        error.statusCode
+      ));
+    }
+    next(new ErrorResponse('Error creating payment order. Please try again.', 500));
+  }
+};
+
+// @desc    Verify Razorpay Payment and Update Booking
+// @route   POST /api/payments/verify
+// @access  Private
+exports.verifyRazorpayPayment = async (req, res, next) => {
+  try {
+    const { orderId, paymentId, signature, bookingId } = req.body;
+
+    if (!orderId || !paymentId || !signature || !bookingId) {
+      return next(new ErrorResponse('Missing required payment details', 400));
+    }
+
+    try {
+      // Verify the payment with Razorpay
+      const payment = await razorpay.payments.fetch(paymentId);
+      
+      // Check if payment is captured and successful
+      if (payment.status !== 'captured') {
+        return next(new ErrorResponse('Payment not captured or failed', 400));
+      }
+
+      // Update the booking status
+      const updatedBooking = await Booking.findByIdAndUpdate(
+        bookingId,
+        {
+          $set: {
+            status: 'Confirmed',
+            paymentStatus: 'Completed',
+            paymentMethod: 'Razorpay',
+            paymentId: paymentId,
+            paymentDate: new Date()
+          }
+        },
+        { new: true, runValidators: true }
+      );
+
+      if (!updatedBooking) {
+        return next(new ErrorResponse('Booking not found', 404));
+      }
+
+      // Update the car's availability if needed
+      if (updatedBooking.car) {
+        await Car.findByIdAndUpdate(
+          updatedBooking.car,
+          { $addToSet: { bookings: updatedBooking._id } }
+        );
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Payment verified and booking confirmed successfully',
+        booking: updatedBooking
+      });
+
+    } catch (razorpayError) {
+      console.error('Razorpay API Error:', razorpayError);
+      // If Razorpay verification fails, still try to update the booking as paid
+      // since the payment might have gone through but verification failed
+      try {
+        await Booking.findByIdAndUpdate(
+          bookingId,
+          {
+            $set: {
+              paymentStatus: 'Completed',
+              paymentId: paymentId,
+              paymentDate: new Date()
+            }
+          }
+        );
+        
+        return res.status(200).json({
+          success: true,
+          message: 'Payment processed. Please check your bookings for confirmation.',
+          requiresVerification: true
+        });
+      } catch (updateError) {
+        console.error('Error updating booking after failed verification:', updateError);
+        return next(new ErrorResponse('Payment processed but could not update booking status', 500));
+      }
+    }
+
+  } catch (error) {
+    console.error('Payment Verification Error:', error);
+    next(new ErrorResponse('Error verifying payment', 500));
+  }
+};
+
+// @desc    Generate UPI Payment Link
+// @route   POST /api/payments/upi-link
+// @access  Private
+exports.generateUPILink = async (req, res, next) => {
+  try {
+    const { amount, currency = 'INR', description = 'Car Rental Booking' } = req.body;
+
+    const paymentLink = await razorpay.paymentLink.create({
+      amount: Math.round(amount * 100),
+      currency,
+      description,
+      customer: {
+        name: req.user.name,
+        email: req.user.email,
+        contact: req.user.phone
+      },
+      notify: {
+        sms: true,
+        email: true
+      },
+      reminder_enable: true
     });
+
+    res.status(200).json({
+      success: true,
+      paymentLink
+    });
+
+  } catch (error) {
+    console.error('UPI Link Error:', error);
+    next(new ErrorResponse('Error generating UPI payment link', 500));
+  }
+};
+
+// @desc    Check Payment Status
+// @route   GET /api/payments/status/:paymentId
+// @access  Private
+exports.checkPaymentStatus = async (req, res, next) => {
+  try {
+    const { paymentId } = req.params;
+    const payment = await razorpay.payments.fetch(paymentId);
+
+    res.status(200).json({
+      success: true,
+      payment
+    });
+
+  } catch (error) {
+    console.error('Payment Status Error:', error);
+    next(new ErrorResponse('Error checking payment status', 500));
   }
 };

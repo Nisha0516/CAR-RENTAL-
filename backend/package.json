@@ -6,7 +6,11 @@
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
-  "keywords": ["car", "rental", "api"],
+  "keywords": [
+    "car",
+    "rental",
+    "api"
+  ],
   "author": "",
   "license": "ISC",
   "description": "Car Rental Backend API",
@@ -15,10 +19,11 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
+    "express-validator": "^7.0.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.19.2",
     "multer": "^1.4.5-lts.1",
-    "express-validator": "^7.0.1"
+    "razorpay": "^2.9.6"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

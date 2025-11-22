@@ -5,16 +5,27 @@ const Notification = require('../models/Notification');
 // @access  Private
 exports.getNotifications = async (req, res) => {
   try {
-    const { read, limit = 20 } = req.query;
+    const { read, limit = 50, type } = req.query;
+    
+    console.log('getNotifications called with:', { read, limit, type, userId: req.user.id });
     
     let query = { user: req.user.id };
+    
     if (read !== undefined) {
       query.read = read === 'true';
     }
 
+    if (type) {
+      query.type = type;
+    }
+
+    console.log('Notification query:', query);
+
     const notifications = await Notification.find(query)
       .sort('-createdAt')
       .limit(parseInt(limit));
+
+    console.log('Found notifications:', notifications.length);
 
     const unreadCount = await Notification.countDocuments({
       user: req.user.id,
@@ -124,14 +135,16 @@ exports.deleteNotification = async (req, res) => {
 // @access  Internal
 exports.createNotification = async (userId, type, title, message, relatedData = {}) => {
   try {
-    await Notification.create({
+    const notification = await Notification.create({
       user: userId,
       type,
       title,
       message,
       ...relatedData
     });
+    return notification;
   } catch (error) {
     console.error('Error creating notification:', error);
+    throw error; // Re-throw to allow caller to handle
   }
 };

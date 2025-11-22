@@ -1,23 +1,36 @@
+// backend/routes/payments.js
 const express = require('express');
 const router = express.Router();
+const { protect } = require('../middleware/auth');
 const {
-  getPayments,
-  getPayment,
-  processPayment,
-  processRefund,
-  getPaymentStats
+  createRazorpayOrder,
+  verifyRazorpayPayment,
+  generateUPILink,
+  checkPaymentStatus
 } = require('../controllers/paymentController');
-const { protect, authorize } = require('../middleware/auth');
 
-// All routes require authentication
+// Test route
+router.get('/test', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'Payments API is working!',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Apply auth middleware to all routes below
 router.use(protect);
 
-router.get('/stats', authorize('admin'), getPaymentStats);
-router.route('/')
-  .get(getPayments)
-  .post(authorize('customer'), processPayment);
+// Create Razorpay order
+router.post('/create-order', createRazorpayOrder);
 
-router.get('/:id', getPayment);
-router.post('/:id/refund', authorize('admin'), processRefund);
+// Verify payment
+router.post('/verify', verifyRazorpayPayment);
+
+// Generate UPI payment link
+router.post('/upi-link', generateUPILink);
+
+// Check payment status
+router.get('/status/:paymentId', checkPaymentStatus);
 
 module.exports = router;

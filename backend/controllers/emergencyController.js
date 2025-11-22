@@ -65,22 +65,30 @@ exports.createEmergency = async (req, res) => {
     // Send notifications to all admins
     const admins = await User.find({ role: 'admin' }).select('-password');
     
+    console.log(`📢 Sending emergency notifications to ${admins.length} admin(s)...`);
+    
     // Create notification for each admin
-    await Promise.all(admins.map(admin => 
-      createNotification(
+    const notificationPromises = admins.map(async (admin) => {
+      try {
+        await createNotification(
         admin._id,
         'emergency',
         '🚨 New Emergency Alert',
-        `Emergency: ${type} reported by ${req.user.name} for ${booking.car.name}`,
+          `Emergency: ${type} reported by ${req.user.name} for ${booking.car.name}. Location: ${location && !location.error ? `${location.latitude}, ${location.longitude}` : 'Not available'}`,
         { 
-          emergencyId: emergency._id,
-          bookingId: booking._id,
-          carId: booking.car._id,
-          customerId: req.user.id,
-          type: 'emergency_alert'
-        }
-      )
-    ));
+            relatedEmergency: emergency._id,
+            relatedBooking: booking._id,
+            relatedCar: booking.car._id
+          }
+        );
+        console.log(`✅ Notification sent to admin: ${admin.name} (${admin.email})`);
+      } catch (error) {
+        console.error(`❌ Failed to send notification to admin ${admin.name}:`, error);
+      }
+    });
+    
+    await Promise.all(notificationPromises);
+    console.log(`✅ All emergency notifications sent successfully!`);
     
     // Emit socket event for real-time update
     if (io) {
